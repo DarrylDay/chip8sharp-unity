@@ -2,7 +2,6 @@
 using UnityEngine;
 using Chip8Sharp.Core;
 
-
 namespace Chip8Sharp.Unity
 {
     public class UnityChip8SharpEmu : MonoBehaviour
@@ -15,18 +14,18 @@ namespace Chip8Sharp.Unity
         private UnityRandomNumber _unityRandomNumber;
         private UnityLogger _unityLogger;
 
-        private CPU _cpu;
+        public CPU CPU { get; private set; }
 
         private bool _gameLoaded = false;
         private float _deltaCounter;
 
-        void Start()
+        public void Init()
         {
             _unityUserInput = new UnityUserInput();
             _unityRandomNumber = new UnityRandomNumber();
             _unityLogger = new UnityLogger();
 
-            _cpu = new CPU(
+            CPU = new CPU(
                 _unityScreenRenderer,
                 _unityUserInput,
                 _unityBeep,
@@ -34,34 +33,37 @@ namespace Chip8Sharp.Unity
                 _unityLogger
                 );
 
-            _cpu.Reset();
+            //CPU.Reset();
+        }
 
-            FileBrowser.SetFilters(false, ".ch8");
-            FileBrowser.ShowLoadDialog((files) => 
-            {
-                var romBytes = System.IO.File.ReadAllBytes(files[0]);
-                _cpu.LoadGame(romBytes);
-                _gameLoaded = true;
-            }, 
-            () => { }, 
-            title: "Select Chip 8 Rom");
+        void Start()
+        {
+            //FileBrowser.SetFilters(false, ".ch8");
+            //FileBrowser.ShowLoadDialog((files) => 
+            //{
+            //    var romBytes = System.IO.File.ReadAllBytes(files[0]);
+            //    CPU.LoadGame(romBytes);
+            //    _gameLoaded = true;
+            //}, 
+            //() => { }, 
+            //title: "Select Chip 8 Rom");
             
         }
 
         void Update()
         {
-            _deltaCounter += Time.deltaTime;
+            //_deltaCounter += Time.deltaTime;
 
-            if (_deltaCounter >= (1f / 500f))
-            {
-                _deltaCounter = 0f;
+            //if (_deltaCounter >= (1f / 500f))
+            //{
+            //    _deltaCounter = 0f;
 
-                if (_gameLoaded)
-                {
-                    _cpu.EmulateCycle();
-                    _cpu.SetKeys();
-                }
-            }
+            //    if (_gameLoaded)
+            //    {
+            //        CPU.EmulateCycle();
+            //        CPU.SetKeys();
+            //    }
+            //}
         }
     }
 }

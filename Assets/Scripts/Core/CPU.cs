@@ -7,32 +7,35 @@ namespace Chip8Sharp.Core
 {
     public class CPU
     {
+
+        public ushort AddressPointer => I;
+
         // Opcode
-        private ushort _opcode;
+        public ushort Opcode { get; private set; }
 
         // Memory
-        private byte[] _ram = new byte[4096];
-        private ushort _i;
-        private ushort _pc;
+        public byte[] RAM { get; private set; } = new byte[4096];
+        public ushort I { get; private set; }
+        public ushort PC { get; private set; }
 
         // Registers
-        private byte[] _v = new byte[16];
+        public byte[] V { get; private set; } = new byte[16];
 
         // Graphics
-        private byte[] _gfx = new byte[64 * 32];
+        public byte[] GFX { get; private set; } = new byte[64 * 32];
 
         // Timers
-        private byte _delayTimer;
-        private byte _soundTimer;
+        public byte DelayTimer { get; private set; }
+        public byte SoundTimer { get; private set; }
         private byte _60HzCounter;
         private float _clockSpeed = 500f;
 
         // Stack
-        private ushort[] _stack = new ushort[16];
-        private ushort _stackPointer;
+        public ushort[] Stack { get; private set; } = new ushort[16];
+        public ushort StackPointer { get; private set; }
 
         // Input
-        private byte[] _keys = new byte[16];
+        public byte[] Keys { get; private set; } = new byte[16];
         private bool _keyPressHault = false;
         private byte _keyVIndex;
 
@@ -80,36 +83,36 @@ namespace Chip8Sharp.Core
 
         public void Reset()
         {
-            _pc = 0x200;            // Program counter starts at 0x200
-            _opcode = 0;            // Reset current opcode	
-            _i = 0;                 // Reset index register
-            _stackPointer = 0;      // Reset stack pointer
-            _delayTimer = 0;        // Reset delay timer
-            _soundTimer = 0;        // Reset sound timer
+            PC = 0x200;            // Program counter starts at 0x200
+            Opcode = 0;            // Reset current opcode	
+            I = 0;                 // Reset index register
+            StackPointer = 0;      // Reset stack pointer
+            DelayTimer = 0;        // Reset delay timer
+            SoundTimer = 0;        // Reset sound timer
 
             // Init display
             for (int i = 0; i < (64 * 32); i++)
             {
-                _gfx[i] = 0;
+                GFX[i] = 0;
             }
             _screenRenderer.Initialize();
 
             // Clear stack and registers
             for (int i = 0; i < 16; i++)
             {
-                _stack[i] = 0;
-                _v[i] = 0;
+                Stack[i] = 0;
+                V[i] = 0;
             }
 
             // Clear RAM
             for (int i = 0; i < 4096; i++)
             {
-                _ram[i] = 0;
+                RAM[i] = 0;
             }
 
             // Load fontset
             for (int i = 0; i < 0x50; ++i)
-                _ram[i] = _chip8Fontset[i];
+                RAM[i] = _chip8Fontset[i];
 
             _logger?.Log("Chip 8 Emulator Reset");
         }
@@ -119,12 +122,12 @@ namespace Chip8Sharp.Core
             // Load rom bytes into RAM
             for (int i = 0; i < romBytes.Length; ++i)
             {
-                _ram[i + 0x200] = romBytes[i];
+                RAM[i + 0x200] = romBytes[i];
             }
 
             // Halt at end of program
-            _ram[(0x200 + romBytes.Length)] = 0x0E;
-            _ram[(0x200 + romBytes.Length + 1)] = 0xFD;
+            RAM[(0x200 + romBytes.Length)] = 0x0E;
+            RAM[(0x200 + romBytes.Length + 1)] = 0xFD;
 
             _logger?.Log("Chip 8 ROM Loaded - " + romBytes.Length + " Bytes");
         }
@@ -138,27 +141,27 @@ namespace Chip8Sharp.Core
                 bool drawFlag = false;
 
                 // Fetch
-                _opcode = (ushort)(_ram[_pc] << 8 | _ram[_pc + 1]);
+                Opcode = (ushort)(RAM[PC] << 8 | RAM[PC + 1]);
                 byte F = 0xF;
-                byte X = (byte)((_opcode & 0x0F00) >> 8);
-                byte Y = (byte)((_opcode & 0x00F0) >> 4);
-                byte N = (byte)(_opcode & 0x000F);
-                byte NN = (byte)(_opcode & 0x00FF);
-                ushort NNN = (ushort)(_opcode & 0x0FFF);
+                byte X = (byte)((Opcode & 0x0F00) >> 8);
+                byte Y = (byte)((Opcode & 0x00F0) >> 4);
+                byte N = (byte)(Opcode & 0x000F);
+                byte NN = (byte)(Opcode & 0x00FF);
+                ushort NNN = (ushort)(Opcode & 0x0FFF);
 
                 // Decode & Excute
-                switch ((_opcode) & 0xF000)
+                switch ((Opcode) & 0xF000)
                 {
                     case 0x0000:
 
-                        switch ((_opcode) & 0xFFF)
+                        switch ((Opcode) & 0xFFF)
                         {
                             case 0x0E0:
 
                                 // Clears the screen.
                                 for (int i = 0; i < (64 * 32); i++)
                                 {
-                                    _gfx[i] = 0;
+                                    GFX[i] = 0;
                                 }
 
                                 drawFlag = true;
@@ -167,13 +170,13 @@ namespace Chip8Sharp.Core
                             case 0x0EE:
 
                                 // Returns from a subroutine.
-                                _stackPointer--;
-                                _pc = _stack[_stackPointer];
+                                StackPointer--;
+                                PC = Stack[StackPointer];
 
                                 break;
                             default:
 
-                                _logger?.Log("Invalid opcode = " + _opcode.ToString());
+                                _logger?.Log("Invalid opcode = " + Opcode.ToString());
 
                                 break;
                         }
@@ -182,23 +185,23 @@ namespace Chip8Sharp.Core
                     case 0x1000:
 
                         // Jumps to address NNN.
-                        _pc = NNN;
+                        PC = NNN;
                         incrementCounter = false;
 
                         break;
                     case 0x2000:
 
                         // Calls subroutine at NNN.
-                        _stack[_stackPointer] = _pc;
-                        ++_stackPointer;
-                        _pc = NNN;
+                        Stack[StackPointer] = PC;
+                        ++StackPointer;
+                        PC = NNN;
                         incrementCounter = false;
 
                         break;
                     case 0x3000:
 
                         // Skips the next instruction if VX equals NN. (Usually the next instruction is a jump to skip a code block)
-                        if (_v[X] == NN)
+                        if (V[X] == NN)
                         {
                             skipNextInstruction = true;
                         }
@@ -207,7 +210,7 @@ namespace Chip8Sharp.Core
                     case 0x4000:
 
                         // Skips the next instruction if VX doesn't equal NN. (Usually the next instruction is a jump to skip a code block)
-                        if (_v[X] != NN)
+                        if (V[X] != NN)
                         {
                             skipNextInstruction = true;
                         }
@@ -216,7 +219,7 @@ namespace Chip8Sharp.Core
                     case 0x5000:
 
                         // Skips the next instruction if VX equals VY. (Usually the next instruction is a jump to skip a code block)
-                        if (_v[X] == _v[Y])
+                        if (V[X] == V[Y])
                         {
                             skipNextInstruction = true;
                         }
@@ -225,114 +228,114 @@ namespace Chip8Sharp.Core
                     case 0x6000:
 
                         // Sets VX to NN.
-                        _v[X] = NN;
+                        V[X] = NN;
                         break;
 
                     case 0x7000:
 
                         // Adds NN to VX. (Carry flag is not changed)
-                        _v[X] += NN;
+                        V[X] += NN;
                         break;
 
                     case 0x8000:
 
-                        switch (_opcode & 0x00F)
+                        switch (Opcode & 0x00F)
                         {
                             case 0x000:
 
                                 // Sets VX to the value of VY.
-                                _v[X] = _v[Y];
+                                V[X] = V[Y];
 
                                 break;
                             case 0x001:
 
                                 // Sets VX to VX or VY. (Bitwise OR operation)
-                                _v[X] = (byte)(_v[X] | _v[Y]);
+                                V[X] = (byte)(V[X] | V[Y]);
 
                                 break;
                             case 0x002:
 
                                 // Sets VX to VX and VY. (Bitwise AND operation)
-                                _v[X] = (byte)(_v[X] & _v[Y]);
+                                V[X] = (byte)(V[X] & V[Y]);
 
                                 break;
                             case 0x003:
 
                                 // Sets VX to VX xor VY.
-                                _v[X] = (byte)(_v[X] ^ _v[Y]);
+                                V[X] = (byte)(V[X] ^ V[Y]);
 
                                 break;
                             case 0x004:
 
                                 // Adds VY to VX. VF is set to 1 when there's a carry, and to 0 when there isn't.
-                                int sumVxVy = _v[X] + _v[Y];
+                                int sumVxVy = V[X] + V[Y];
 
                                 if (sumVxVy > 255)
                                 {
                                     sumVxVy -= 256;
-                                    _v[F] = 0x01;
+                                    V[F] = 0x01;
                                 }
                                 else
                                 {
-                                    _v[F] = 0x00;
+                                    V[F] = 0x00;
                                 }
 
-                                _v[X] = (byte)sumVxVy;
+                                V[X] = (byte)sumVxVy;
 
                                 break;
                             case 0x005:
 
                                 // VY is subtracted from VX. VF is set to 0 when there's a borrow, and 1 when there isn't.
-                                int subVxVy = _v[X] - _v[Y];
+                                int subVxVy = V[X] - V[Y];
 
                                 if (subVxVy < 0)
                                 {
                                     subVxVy += 256;
-                                    _v[F] = 0x01;
+                                    V[F] = 0x01;
                                 }
                                 else
                                 {
-                                    _v[F] = 0x00;
+                                    V[F] = 0x00;
                                 }
 
-                                _v[X] = (byte)subVxVy;
+                                V[X] = (byte)subVxVy;
 
                                 break;
                             case 0x006:
 
                                 // Stores the least significant bit of VX in VF and then shifts VX to the right by 1.[b]
-                                _v[F] = (byte)(_v[X] & 0b00000001);
-                                _v[X] >>= 1;
+                                V[F] = (byte)(V[X] & 0b00000001);
+                                V[X] >>= 1;
 
                                 break;
                             case 0x007:
 
                                 // Sets VX to VY minus VX. VF is set to 0 when there's a borrow, and 1 when there isn't.
-                                int subVyVx = _v[Y] - _v[X];
+                                int subVyVx = V[Y] - V[X];
 
                                 if (subVyVx < 0)
                                 {
                                     subVyVx += 256;
-                                    _v[F] = 0x01;
+                                    V[F] = 0x01;
                                 }
                                 else
                                 {
-                                    _v[F] = 0x00;
+                                    V[F] = 0x00;
                                 }
 
-                                _v[X] = (byte)subVyVx;
+                                V[X] = (byte)subVyVx;
 
                                 break;
                             case 0x00E:
 
                                 // 	Stores the most significant bit of VX in VF and then shifts VX to the left by 1.[b]
-                                _v[F] = (byte)(_v[X] & 0b10000000);
-                                _v[X] <<= 1;
+                                V[F] = (byte)(V[X] & 0b10000000);
+                                V[X] <<= 1;
 
                                 break;
                             default:
 
-                                _logger?.Log("Invalid opcode = " + _opcode.ToString());
+                                _logger?.Log("Invalid opcode = " + Opcode.ToString());
 
                                 break;
                         }
@@ -342,7 +345,7 @@ namespace Chip8Sharp.Core
                     case 0x9000:
 
                         // Skips the next instruction if VX doesn't equal VY. (Usually the next instruction is a jump to skip a code block)
-                        if (_v[X] != _v[Y])
+                        if (V[X] != V[Y])
                         {
                             skipNextInstruction = true;
                         }
@@ -351,20 +354,20 @@ namespace Chip8Sharp.Core
                     case 0xA000:
 
                         // Sets I to the address NNN.
-                        _i = NNN;
+                        I = NNN;
 
                         break;
                     case 0xB000:
 
                         // 	Jumps to the address NNN plus V0.
-                        _pc = (ushort)(_v[0] + NNN);
+                        PC = (ushort)(V[0] + NNN);
                         incrementCounter = false;
 
                         break;
                     case 0xC000:
 
                         // Sets VX to the result of a bitwise and operation on a random number (Typically: 0 to 255) and NN.
-                        _v[X] = (byte)(_randomNumber.RandomNumber() & NN);
+                        V[X] = (byte)(_randomNumber.RandomNumber() & NN);
 
                         break;
                     case 0xD000:
@@ -376,16 +379,16 @@ namespace Chip8Sharp.Core
                         int height = N;
                         ushort pixel;
                         
-                        _v[0xF] = 0;
+                        V[0xF] = 0;
                         for (int yline = 0; yline < height; yline++)
                         {
-                            pixel = _ram[_i + yline];
+                            pixel = RAM[I + yline];
                             for (int xline = 0; xline < 8; xline++)
                             {
                                 if ((pixel & (0b10000000 >> xline)) != 0)
                                 {
-                                    int posX = _v[X] + xline;
-                                    int posY = _v[Y] + yline;
+                                    int posX = V[X] + xline;
+                                    int posY = V[Y] + yline;
 
                                     // Check if sprite overflows screen
                                     if (posX >= 64)
@@ -394,12 +397,12 @@ namespace Chip8Sharp.Core
                                         posY -= 32;
 
                                     // Check if pixel is already set, if so raise V[F] flag
-                                    if (_gfx[(posX + (posY * 64))] == 1)
+                                    if (GFX[(posX + (posY * 64))] == 1)
                                     {
-                                        _v[0xF] = 1;
+                                        V[0xF] = 1;
                                     }   
 
-                                    _gfx[posX + (posY * 64)] ^= 1;
+                                    GFX[posX + (posY * 64)] ^= 1;
                                 }
                             }
                         }
@@ -408,25 +411,25 @@ namespace Chip8Sharp.Core
                         break;
                     case 0xE000:
 
-                        switch (_opcode & 0x0FF)
+                        switch (Opcode & 0x0FF)
                         {
                             case 0x09E:
 
                                 // Skips the next instruction if the key stored in VX is pressed. (Usually the next instruction is a jump to skip a code block)
-                                if (_keys[_v[X]] == 1)
+                                if (Keys[V[X]] == 1)
                                     skipNextInstruction = true;
 
                                 break;
                             case 0x0A1:
 
                                 // Skips the next instruction if the key stored in VX isn't pressed. (Usually the next instruction is a jump to skip a code block)
-                                if (_keys[_v[X]] == 0)
+                                if (Keys[V[X]] == 0)
                                     skipNextInstruction = true;
 
                                 break;
                             default:
 
-                                _logger?.Log("Invalid opcode = " + _opcode.ToString());
+                                _logger?.Log("Invalid opcode = " + Opcode.ToString());
 
                                 break;
                         }
@@ -434,12 +437,12 @@ namespace Chip8Sharp.Core
                         break;
                     case 0xF000:
 
-                        switch (_opcode & 0x00FF)
+                        switch (Opcode & 0x00FF)
                         {
                             case 0x007:
 
                                 // Sets VX to the value of the delay timer.
-                                _v[X] = _delayTimer;
+                                V[X] = DelayTimer;
 
                                 break;
                             case 0x00A:
@@ -453,26 +456,26 @@ namespace Chip8Sharp.Core
                             case 0x015:
 
                                 // Sets the delay timer to VX.	
-                                _delayTimer = _v[X];
+                                DelayTimer = V[X];
 
                                 break;
                             case 0x018:
 
                                 // Sets the sound timer to VX.
-                                _soundTimer = _v[X];
+                                SoundTimer = V[X];
 
                                 break;
                             case 0x01E:
 
                                 // Adds VX to I. VF is not affected.
-                                _i += _v[X];
+                                I += V[X];
 
                                 break;
                             case 0x029:
 
                                 // Sets I to the location of the sprite for the character in VX. 
                                 // Characters 0-F (in hexadecimal) are represented by a 4x5 font.
-                                _i = (ushort)(_v[X] * 5);
+                                I = (ushort)(V[X] * 5);
 
                                 break;
                             case 0x033:
@@ -481,9 +484,9 @@ namespace Chip8Sharp.Core
                                 // digits at the address in I, the middle digit at I plus 1, and the least significant digit 
                                 // at I plus 2. (In other words, take the decimal representation of VX, place the hundreds digit 
                                 // in memory at location in I, the tens digit at location I+1, and the ones digit at location I+2.)
-                                _ram[_i] = (byte)(_v[X] / 100);
-                                _ram[_i + 1] = (byte)((_v[X] / 10) % 10);
-                                _ram[_i + 2] = (byte)((_v[X] % 100) % 10);
+                                RAM[I] = (byte)(V[X] / 100);
+                                RAM[I + 1] = (byte)((V[X] / 10) % 10);
+                                RAM[I + 2] = (byte)((V[X] % 100) % 10);
 
                                 break;
                             case 0x055:
@@ -492,7 +495,7 @@ namespace Chip8Sharp.Core
                                 // The offset from I is increased by 1 for each value written, but I itself is left unmodified.[d]
                                 for (byte i = 0; i <= X; i++)
                                 {
-                                    _ram[_i + i] = _v[i];
+                                    RAM[I + i] = V[i];
                                 }
 
                                 break;
@@ -502,13 +505,13 @@ namespace Chip8Sharp.Core
                                 // The offset from I is increased by 1 for each value written, but I itself is left unmodified.[d]
                                 for (byte i = 0; i <= X; i++)
                                 {
-                                    _v[i] = _ram[_i + i];
+                                    V[i] = RAM[I + i];
                                 }
 
                                 break;
                             default:
 
-                                _logger?.Log("Invalid opcode = " + _opcode.ToString("X"));
+                                _logger?.Log("Invalid opcode = " + Opcode.ToString("X"));
 
                                 break;
                         }
@@ -520,17 +523,17 @@ namespace Chip8Sharp.Core
                 {
                     if (skipNextInstruction)
                     {
-                        _pc += 4;
+                        PC += 4;
                     }
                     else if (incrementCounter)
                     {
-                        _pc += 2;
+                        PC += 2;
                     }
                 }
 
                 if (drawFlag)
                 {
-                    _screenRenderer.DrawGFX(_gfx);
+                    _screenRenderer.DrawGFX(GFX);
                 }
             }
 
@@ -540,14 +543,14 @@ namespace Chip8Sharp.Core
                 _60HzCounter = (byte)(_clockSpeed / 60f);
 
                 // Update timers
-                if (_delayTimer > 0)
-                    --_delayTimer;
+                if (DelayTimer > 0)
+                    --DelayTimer;
 
-                if (_soundTimer > 0)
+                if (SoundTimer > 0)
                 {
-                    if (_soundTimer == 1)
+                    if (SoundTimer == 1)
                         _beep.Beep();
-                    --_soundTimer;
+                    --SoundTimer;
                 }
             }
 
@@ -558,12 +561,12 @@ namespace Chip8Sharp.Core
             bool keyActive = false;
             byte keyNumber = 0;
 
-            _userInput.SetKeys(_keys);
+            _userInput.SetKeys(Keys);
 
             // Check if a key is active
             for (byte i = 0; i < 16; i++)
             {
-                if (_keys[i] == 1)
+                if (Keys[i] == 1)
                 {
                     keyActive = true;
                     keyNumber = i;
@@ -573,7 +576,7 @@ namespace Chip8Sharp.Core
             // End key press hault if a key is pressed
             if (keyActive && _keyPressHault)
             {
-                _v[_keyVIndex] = (byte)keyNumber;
+                V[_keyVIndex] = (byte)keyNumber;
                 _keyPressHault = false;
             }
         }
