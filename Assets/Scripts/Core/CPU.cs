@@ -2,6 +2,7 @@
 using Chip8Sharp.Input;
 using Chip8Sharp.Debug;
 using Chip8Sharp.Sound;
+using System;
 
 namespace Chip8Sharp.Core
 {
@@ -79,6 +80,8 @@ namespace Chip8Sharp.Core
             _beep = beep;
             _randomNumber = randomNumber;
             _logger = logger;
+
+            Reset();
         }
 
         public void Reset()
@@ -287,15 +290,15 @@ namespace Chip8Sharp.Core
 
                                 // VY is subtracted from VX. VF is set to 0 when there's a borrow, and 1 when there isn't.
                                 int subVxVy = V[X] - V[Y];
-
+                                
                                 if (subVxVy < 0)
                                 {
                                     subVxVy += 256;
-                                    V[F] = 0x01;
+                                    V[F] = 0x00;
                                 }
                                 else
                                 {
-                                    V[F] = 0x00;
+                                    V[F] = 0x01;
                                 }
 
                                 V[X] = (byte)subVxVy;
@@ -316,11 +319,11 @@ namespace Chip8Sharp.Core
                                 if (subVyVx < 0)
                                 {
                                     subVyVx += 256;
-                                    V[F] = 0x01;
+                                    V[F] = 0x00;
                                 }
                                 else
                                 {
-                                    V[F] = 0x00;
+                                    V[F] = 0x01;
                                 }
 
                                 V[X] = (byte)subVyVx;
@@ -519,16 +522,13 @@ namespace Chip8Sharp.Core
                         break;
                 }
 
-                if (!_keyPressHault)
+                if (skipNextInstruction)
                 {
-                    if (skipNextInstruction)
-                    {
-                        PC += 4;
-                    }
-                    else if (incrementCounter)
-                    {
-                        PC += 2;
-                    }
+                    PC += 4;
+                }
+                else if (incrementCounter)
+                {
+                    PC += 2;
                 }
 
                 if (drawFlag)
@@ -556,12 +556,13 @@ namespace Chip8Sharp.Core
 
         }
 
-        public void SetKeys()
+        public void SetKeys(bool keysOverridden = false)
         {
             bool keyActive = false;
             byte keyNumber = 0;
 
-            _userInput.SetKeys(Keys);
+            if (!keysOverridden)
+                _userInput.SetKeys(Keys);
 
             // Check if a key is active
             for (byte i = 0; i < 16; i++)
