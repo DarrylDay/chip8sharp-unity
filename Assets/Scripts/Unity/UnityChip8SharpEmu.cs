@@ -32,6 +32,10 @@ namespace Chip8Sharp.Unity
 
         private bool _gameLoaded = false;
 
+#if UNITY_WEBGL
+        private PreloadedROMData _preloadedROMs;
+#endif
+
         public void Init()
         {
             _unityUserInput = new UnityUserInput();
@@ -55,6 +59,8 @@ namespace Chip8Sharp.Unity
             _selectROMButton.gameObject.SetActive(false);
 
             Application.targetFrameRate = -1;
+
+            _preloadedROMs = Resources.Load<PreloadedROMData>("PreloadedROMData");
 #endif
 
             if (InitOnStart)
@@ -120,6 +126,35 @@ namespace Chip8Sharp.Unity
 
         public void OpenPreloadedGame(string gameName)
         {
+#if UNITY_WEBGL
+            byte[] romBytes = null;
+            switch(gameName)
+            {
+                case "Breakout (Brix hack) [David Winter, 1997]":
+                    romBytes = _preloadedROMs.BreakoutROM;
+                    break;
+                case "Pong [Paul Vervalin, 1990]":
+                    romBytes = _preloadedROMs.PongROM;
+                    break;
+                case "Space Invaders [David Winter]":
+                    romBytes = _preloadedROMs.SpaceInvadersROM;
+                    break;
+                case "Tank":
+                    romBytes = _preloadedROMs.TankROM;
+                    break;
+                case "Tetris [Fran Dachille, 1991]":
+                    romBytes = _preloadedROMs.TetrisROM;
+                    break;
+                case "UFO [Lutz V, 1992]":
+                    romBytes = _preloadedROMs.UFOROM;
+                    break;
+                default:
+                    break;
+            }
+
+            if (romBytes != null)
+                LoadGame(romBytes);
+#else
             StartCoroutine(LoadBytesFromStreamingAsset("Roms/" + gameName + ".ch8", (bytes) =>
             {
                 if (bytes != null)
@@ -128,6 +163,7 @@ namespace Chip8Sharp.Unity
                 }
             }
             ));
+#endif
         }
 
         private void LoadGame(byte[] bytes)
