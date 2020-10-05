@@ -1,6 +1,8 @@
 # chip8sharp-unity
 A CHIP-8 emulator built in Unity. Configured to work with PC, Mac, Linux Standalone and WebGL. Some ROMs come preloaded and on standalone versions you can upload any of you own ROMs.
 
+Playable WebGL link: https://simmer.io/@work4games/chip-8-emulator
+
 ![Game](https://user-images.githubusercontent.com/26587807/95029009-806a5e80-067f-11eb-8c92-e64e1e3dbb6a.PNG)
 
 ## Input
@@ -19,3 +21,6 @@ Using Unity's TestRunner, unit tests were created to test every opcode.
 
 ## 3rd Party Packages
 I use SimpleFileBrowser to handle selecting ROM files for standlone version: https://github.com/yasirkula/UnitySimpleFileBrowser
+
+## ROMs
+ROMs were taken from here: https://github.com/dmatlack/chip8/tree/master/roms/games
